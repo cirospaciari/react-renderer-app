@@ -1,8 +1,7 @@
 import React, { Component, Fragment } from 'react';
 import { BrowserRouter, StaticRouter, Route, Switch } from 'react-router-dom';
 import RouteWrapper from './routeWrapper';
-import { setCookie, getCookies } from './helpers';
-import ReactDOM from 'react-dom';
+import { getRequest, getDOMHandler, getReply } from './helpers';
 
 export default class App extends Component {
 
@@ -47,12 +46,12 @@ export default class App extends Component {
                             this.state.entry_state.is_fetching = false;
                         } else {
                             //tells client side do fetch data
-                            const { fetch, request, executeDOMOperations } = this.getRequest();
+                            const { fetch, reply, executeDOMOperations } = this.getRequest();
                             this.state.entry_state.promise = fetch(entry);
                             const complete = (model, dontUseSetState) => {
-                                if (request.status === 302) {
+                                if (reply.status === 302) {
                                     //force redirect outside route
-                                    document.location.href = request.redirect_url;
+                                    document.location.href = reply.redirect_url;
                                     return;
                                 }
 
@@ -106,177 +105,23 @@ export default class App extends Component {
         if (this.state.is_server) {
             return null;
         }
-        additional = additional || {};
-        const location = document.location;
-
-        const request = {
-            url: location.pathname,
-            query: new URLSearchParams(location.search),
-            search: location.search,
-            host: location.host,
-            hostname: location.hostname,
-            protocol: location.protocol,
-            origin: `${location.protocol}//${location.host}`,
-            is_server: false,
-            cookies: getCookies(),
-            ...additional
-        };
-        dom_operations = dom_operations || [];
-        const reply = {
-            redirect: (url) => {
-                request.status = 302;
-                request.redirect_url = url;
-            },
-            setCookie,
-            html: {
-                insertBefore(selector, htmlStringOrComponent, limiter) {
-                    const operation = { type: 'insert-before', selector, limiter };
-                    if (typeof htmlStringOrComponent === 'string') {
-                        operation.html = htmlStringOrComponent;
-                    } else {
-                        operation.component = htmlStringOrComponent;
-                    }
-
-                    dom_operations.push(operation);
-                },
-                insertAfter(selector, htmlStringOrComponent, limiter) {
-                    const operation = { type: 'insert-after', selector, limiter };
-                    if (typeof htmlStringOrComponent === 'string') {
-                        operation.html = htmlStringOrComponent;
-                    } else {
-                        operation.component = htmlStringOrComponent;
-                    }
-
-                    dom_operations.push(operation);
-                },
-                append(selector, htmlStringOrComponent, limiter) {
-                    const operation = { type: 'append', selector, limiter };
-                    if (typeof htmlStringOrComponent === 'string') {
-                        operation.html = htmlStringOrComponent;
-                    } else {
-                        operation.component = htmlStringOrComponent;
-                    }
-
-                    dom_operations.push(operation);
-                },
-                setAttribute(selector, attribute_name, value, limiter) {
-                    dom_operations.push({ type: 'set-attributes', selector, attributes: { [attribute_name]: value }, limiter });
-                },
-                setAttributes(selector, attributes, limiter) {
-                    dom_operations.push({ type: 'set-attributes', selector, attributes, limiter });
-                },
-                removeAttribute(selector, attribute_name, limiter) {
-                    dom_operations.push({ type: 'remove-attributes', selector, attributes: [attribute_name], limiter });
-                },
-                removeAttributes(selector, attributes, limiter) {
-                    dom_operations.push({ type: 'remove-attributes', selector, attributes, limiter });
-                },
-                remove(selector, limiter) {
-                    dom_operations.push({ type: 'remove', selector, limiter });
-                }
-            }
-        }
-        const executeDOMOperations = async () => {
-
-            try {
-                for (let i = 0; i < dom_operations.length; i++) {
-                    const operation = dom_operations[i];
-                    let targets = Array.prototype.slice.apply(document.querySelectorAll(operation.selector));
-                    if (operation.limiter) {
-                        switch (operation.limiter) {
-                            case 'first':
-                                targets = [targets[0]].filter(el => el);
-                                break;
-                            case 'last':
-                                targets = [targets[targets.length - 1]].filter(el => el);
-                                break;
-                            default:
-                                console.error('Invalid dom manipulation, limiter need to be first or last', { invalidLimiter: operation.limiter })
-                                break;
-                        }
-                    }
-
-                    let element = null;
-                    if (operation.html) {
-                        const container = document.createElement('div');
-                        container.innerHTML = operation.html;
-                        element = container.children[0];
-                    } else if (operation.component) {
-                        const Component = operation.component;
-                        const container = document.createElement('div');
-                        element = await new Promise(resolve => {
-                            ReactDOM.render(<Component />, container, () => {
-                                resolve(container.children[0]);
-                            });
-                        });
-                    }
-                    targets.forEach((target) => {
-
-                        switch (operation.type) {
-
-                            case 'remove':
-                                if (!target)
-                                    return;
-                                target.remove();
-                                break;
-                            case 'remove-attributes':
-                                if (!target)
-                                    return;
-                                if (operation.attributes instanceof Array) {
-                                    operation.attributes.forEach((attribute) => {
-                                        target.removeAttribute(attribute);
-                                    });
-                                } else if (typeof operation.attributes === 'string') {
-                                    target.removeAttribute(operation.attributes);
-                                } else {
-                                    console.error('Invalid parameters in', 'reply.removeAttribute(string, string|Array)');
-                                }
-                                break;
-                            case 'set-attributes':
-                                if (!target)
-                                    return;
-                                if (typeof operation.attributes === 'object') {
-                                    for (let i in operation.attributes) {
-                                        target.setAttribute(i, operation.attributes[i] + "");
-                                    }
-                                } else {
-                                    console.error('Invalid parameters in', 'reply.setAttribute(string, object)');
-                                }
-                                break;
-                            case 'append':
-                                if (!element || !target)
-                                    return;
-                                target.append(element);
-                                break;
-                            case 'insert-before':
-                                if (!element || !target)
-                                    return;
-                                target.parentNode.insertBefore(element, target);
-                                break;
-                            case 'insert-after':
-                                if (!element || !target)
-                                    return;
-                                target.parentNode.insertBefore(element, target.nextSibling);
-                                break;
-                            default:
-                                break;
-                        }
-                    });
-
-                }
-
-            } catch (ex) {
-                console.error('Fail to execute DOM operation in SSR', ex);
-            }
-        }
-
+        
+        const request = getRequest(additional);
+        const domHandler = getDOMHandler(dom_operations);
+        const reply = getReply(domHandler);
+        
         const fetch = (routeOrEntry) => {
-            if (!routeOrEntry || typeof routeOrEntry.fetch !== 'function')
+            if (!routeOrEntry)
                 return new Promise((resolve) => resolve(this.state.entry_state.model));
-            return routeOrEntry.fetch(request, reply);
+
+            const fetcher = routeOrEntry.fetch || (routeOrEntry.component || {}).fetch;
+            if(typeof fetcher !== 'function')
+                return new Promise((resolve) => resolve(this.state.entry_state.model));
+
+            return fetcher(request, reply);
         }
 
-        return { request, reply, fetch, executeDOMOperations };
+        return { request, reply, fetch, executeDOMOperations: domHandler.execute };
     }
 
     render() {
