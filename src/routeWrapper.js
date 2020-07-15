@@ -1,5 +1,4 @@
 import React, { Component, Fragment } from 'react';
-import { withRouter, Redirect } from 'react-router-dom';
 import ReactDOM from 'react-dom';
 
 class RouteWrapper extends Component {
@@ -20,7 +19,7 @@ class RouteWrapper extends Component {
                 this.props.context.status = this.props.route.error;
             }
         }
-
+        
         if (!this.props.is_server && !this.props.error) {
 
             const { params } = this.props.match;
@@ -104,6 +103,8 @@ class RouteWrapper extends Component {
     }
 
     render() {
+        const { Redirect } = this.props.react_router_instance || require('react-router-dom');
+
         const route = this.props.route;
 
         const Component = route.component || (() => <Fragment />);
@@ -117,4 +118,4 @@ class RouteWrapper extends Component {
     }
 }
 
-export default withRouter(RouteWrapper);
+export default RouteWrapper;

@@ -1,5 +1,4 @@
 import React, { Component, Fragment } from 'react';
-import { BrowserRouter, StaticRouter, Route, Switch } from 'react-router-dom';
 import RouteWrapper from './routeWrapper';
 import { getRequest, getDOMHandler, getReply } from './helpers';
 
@@ -125,15 +124,16 @@ export default class App extends Component {
     }
 
     render() {
-
+        const { BrowserRouter, StaticRouter, Route, Switch, withRouter } = this.props.react_router_instance || require('react-router-dom');
         const Router = this.state.is_server ? StaticRouter : BrowserRouter;
         const location = (this.state.request || { url: document.location.pathname }).url;
+        const Wrapper = withRouter(RouteWrapper);
         if (this.state.error500) {
             //Error 500 pages do not include custom entry points to avoid crash loops
 
             return this.state.errorPages[500] ? (
                 <StaticRouter location={location}>
-                    <RouteWrapper route={this.state.errorPages[500]}
+                    <Wrapper route={this.state.errorPages[500]}
                         context={this.state.context}
                         is_server={this.state.is_server}
                         is_fetching={this.state.is_fetching}
@@ -142,6 +142,7 @@ export default class App extends Component {
                         error={true}
                         getRequest={this.getRequest}
                         entry={this.state.entry_state.promise}
+                        react_router_instance={this.props.react_router_instance}
                     /> </StaticRouter>) : (<div>500 Internal Error</div>);
         }
 
@@ -158,7 +159,7 @@ export default class App extends Component {
                             {this.state.routes.filter(route => route.path).map((route) => {
                                 return (<Route exact path={route.path} key={`default-router-${route.path}`}
                                     component={() => (
-                                        <RouteWrapper route={route}
+                                        <Wrapper route={route}
                                             context={this.state.context}
                                             is_server={this.state.is_server}
                                             is_fetching={this.state.is_fetching}
@@ -166,13 +167,14 @@ export default class App extends Component {
                                             model={this.state.model}
                                             getRequest={this.getRequest}
                                             entry={this.state.entry_state.promise}
-                                        />
+                                            react_router_instance={this.props.react_router_instance}
+                                            />
                                     )}
                                 />)
                             })}
                             {!!this.state.errorPages[404] && (<Route path="*" status={404} key={`default-router-404`}
                                 component={() => (
-                                    <RouteWrapper route={this.state.errorPages[404]}
+                                    <Wrapper route={this.state.errorPages[404]}
                                         context={this.state.context}
                                         is_server={this.state.is_server}
                                         is_fetching={this.state.is_fetching}
@@ -181,7 +183,8 @@ export default class App extends Component {
                                         error={true}
                                         getRequest={this.getRequest}
                                         entry={this.state.entry_state.promise}
-                                    />
+                                        react_router_instance={this.props.react_router_instance}
+                                        />
                                 )}
                             />)}
                         </Switch>
