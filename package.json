@@ -1,0 +1,46 @@
+{
+  "name": "@react-renderer/app",
+  "version": "0.0.7",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "npx babel src --out-dir lib",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cirospaciari/react-renderer-app.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cirospaciari/react-renderer-app/issues"
+  },
+  "babel": {
+    "presets": [
+      [
+        
+        "@babel/preset-env",
+        {
+          "targets": {
+            "chrome": "58"
+          }
+        }
+      ],
+      "@babel/preset-react"
+    ]
+  },
+  "homepage": "https://github.com/cirospaciari/react-renderer-app#readme",
+  "dependencies": {
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "react-router-dom": "^5.2.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.10.5",
+    "@babel/core": "^7.10.5",
+    "@babel/preset-env": "^7.10.4",
+    "@babel/preset-react": "^7.10.4",
+    "@babel/register": "^7.10.5"
+  }
+}
