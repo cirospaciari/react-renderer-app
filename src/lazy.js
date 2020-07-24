@@ -24,8 +24,10 @@ export default function lazy(callback, options){
         options
     };
 
-    lazy_state.lazy_component = function LazyComponent(props){
-        const React =  (globalMods['react'] || require('react'));
+    const React =  (globalMods['react'] || require('react'));
+
+    function LazyComponent(props){
+
         const { useEffect, useState, Fragment } = React;
     
         const [state, setState] = useState({ loading: !lazy_state.component, component: lazy_state.component  })
@@ -34,7 +36,6 @@ export default function lazy(callback, options){
                 lazy_state.callback().then((component)=> setState({ loading: false, component}))    
             }
         });
-
         if(state.component){
             if(state.component.default){
                 return <state.component.default {...props}/>
@@ -46,6 +47,19 @@ export default function lazy(callback, options){
             return <Fragment></Fragment>
         }
     }
+
+    lazy_state.lazy_component = (props) =>{
+        //preloaded! no need for hooks
+        if(lazy_state.component){
+            if(lazy_state.component.default){
+                return <lazy_state.component.default {...props}/>
+            }
+            return <lazy_state.component {...props}/>;
+        }
+        //use hooks and load on render!
+        return <LazyComponent {...props} />;
+    }
+
     lazy_callbacks.push(lazy_state);
 
     return lazy_state.lazy_component;
