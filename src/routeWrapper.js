@@ -1,4 +1,8 @@
-import React, { Component, Fragment } from 'react';
+const globalMods = typeof window === 'undefined' ? global : window;
+const React =  (globalMods['react'] || require('react'));
+const { Component, Fragment } = React;
+const { Redirect } = globalMods['react-router-dom'] || require('react-router-dom');
+
 import ReactDOM from 'react-dom';
 
 class RouteWrapper extends Component {
@@ -19,7 +23,8 @@ class RouteWrapper extends Component {
                 this.props.context.status = this.props.route.error;
             }
         }
-        
+        this.state.component = route.component || (() => <Fragment />);
+       
         if (!this.props.is_server && !this.props.error) {
 
             const { params } = this.props.match;
@@ -27,7 +32,6 @@ class RouteWrapper extends Component {
 
             //url changed
             if (!this.state.request || this.state.request.url !== request.url || this.state.request.search !== request.search) {
-
                 this.state.is_fetching = true;
                 this.state.request = request;
                 const result = fetch(route);
@@ -64,13 +68,14 @@ class RouteWrapper extends Component {
             }
         }
 
+    
     }
 
     updateHelmet(model) {
         const route = this.props.route;
 
         return new Promise(resolve => {
-            const Helmet = route.helmet || (route.component || {}).helmet || (() => <Fragment />);
+            const Helmet = route.helmet || (this.state.component || {}).helmet || (() => <Fragment />);
             const container = document.createElement('head');
             ReactDOM.render(<Helmet model={model} is_server={false} is_fetching={false} />, container, () => {
                 const headElement = document.querySelector('head');
@@ -103,14 +108,11 @@ class RouteWrapper extends Component {
     }
 
     render() {
-        const { Redirect } = this.props.react_router_instance || require('react-router-dom');
 
-        const route = this.props.route;
-
-        const Component = route.component || (() => <Fragment />);
         if (this.state.redirect) {
             return (<Redirect to={this.state.redirect} />);
         }
+        const Component = this.state.component;
         return (<Component is_fetching={this.state.is_fetching}
             model={this.state.model}
             is_server={this.state.is_server}

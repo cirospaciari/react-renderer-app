@@ -1,7 +1,11 @@
-import React, { Component, Fragment } from 'react';
+const globalMods = typeof window === 'undefined' ? global : window;
+
+const React =  (globalMods['react'] || require('react'));
+const { Component, Fragment } = React;
+const { BrowserRouter, StaticRouter, Route, Switch, withRouter } = globalMods['react-router-dom'] || require('react-router-dom');
+
 import RouteWrapper from './routeWrapper';
 import { getRequest, getDOMHandler, getReply } from './helpers';
-
 export default class App extends Component {
 
     constructor(props, context) {
@@ -37,7 +41,7 @@ export default class App extends Component {
 
         if (typeof this.props.routes === "function") {
             const router = {
-                entry: (entry) => {
+                entry: async (entry) => {
                     this.state.entry = entry;
                     if (this.state.entry_state.is_fetching) {
                         if (this.is_server) {
@@ -104,17 +108,17 @@ export default class App extends Component {
         if (this.state.is_server) {
             return null;
         }
-        
+
         const request = getRequest(additional);
         const domHandler = getDOMHandler(dom_operations);
         const reply = getReply(domHandler);
-        
+
         const fetch = (routeOrEntry) => {
             if (!routeOrEntry)
                 return new Promise((resolve) => resolve(this.state.entry_state.model));
-
+           
             const fetcher = routeOrEntry.fetch || (routeOrEntry.component || {}).fetch;
-            if(typeof fetcher !== 'function')
+            if (typeof fetcher !== 'function')
                 return new Promise((resolve) => resolve(this.state.entry_state.model));
 
             return fetcher(request, reply);
@@ -124,7 +128,6 @@ export default class App extends Component {
     }
 
     render() {
-        const { BrowserRouter, StaticRouter, Route, Switch, withRouter } = this.props.react_router_instance || require('react-router-dom');
         const Router = this.state.is_server ? StaticRouter : BrowserRouter;
         const location = (this.state.request || { url: document.location.pathname }).url;
         const Wrapper = withRouter(RouteWrapper);
@@ -142,55 +145,58 @@ export default class App extends Component {
                         error={true}
                         getRequest={this.getRequest}
                         entry={this.state.entry_state.promise}
-                        react_router_instance={this.props.react_router_instance}
                     /> </StaticRouter>) : (<div>500 Internal Error</div>);
         }
 
         const EntryPoint = (this.state.entry ? this.state.entry.component : null) || ((props) => <Fragment>{props.children}</Fragment>);
+        
         return (
             <Router location={location} context={this.state.context}>
-                <EntryPoint context={this.state.context}
-                    is_server={this.state.is_server}
-                    is_fetching={this.state.entry_state.is_fetching}
-                    model={this.state.entry_state.model}>
-                    {/* Avoids multiple fetchs in Routes */}
-                    {!this.state.entry_state.is_fetching && (
-                        <Switch>
-                            {this.state.routes.filter(route => route.path).map((route) => {
-                                return (<Route exact path={route.path} key={`default-router-${route.path}`}
+                {/*wait for dynamic import*/}
+                {(
+                    <EntryPoint context={this.state.context}
+                        is_server={this.state.is_server}
+                        is_fetching={this.state.entry_state.is_fetching}
+                        model={this.state.entry_state.model}>
+                        {/* Avoids multiple fetchs in Routes */}
+                        {!this.state.entry_state.is_fetching && (
+                            <Switch>
+                                {this.state.routes.filter(route => route.path).map((route) => {
+                                    return (<Route exact path={route.path} key={`default-router-${route.path}`}
+                                        component={() => (
+                                            <Wrapper route={route}
+                                                context={this.state.context}
+                                                is_server={this.state.is_server}
+                                                is_fetching={this.state.is_fetching}
+                                                request={this.state.request}
+                                                model={this.state.model}
+                                                getRequest={this.getRequest}
+                                                entry={this.state.entry_state.promise}
+                                            />
+                                        )}
+                                    />)
+                                })}
+                                {!!this.state.errorPages[404] && (<Route path="*" status={404} key={`default-router-404`}
                                     component={() => (
-                                        <Wrapper route={route}
+                                        <Wrapper route={this.state.errorPages[404]}
                                             context={this.state.context}
                                             is_server={this.state.is_server}
                                             is_fetching={this.state.is_fetching}
                                             request={this.state.request}
                                             model={this.state.model}
+                                            error={true}
                                             getRequest={this.getRequest}
                                             entry={this.state.entry_state.promise}
-                                            react_router_instance={this.props.react_router_instance}
-                                            />
-                                    )}
-                                />)
-                            })}
-                            {!!this.state.errorPages[404] && (<Route path="*" status={404} key={`default-router-404`}
-                                component={() => (
-                                    <Wrapper route={this.state.errorPages[404]}
-                                        context={this.state.context}
-                                        is_server={this.state.is_server}
-                                        is_fetching={this.state.is_fetching}
-                                        request={this.state.request}
-                                        model={this.state.model}
-                                        error={true}
-                                        getRequest={this.getRequest}
-                                        entry={this.state.entry_state.promise}
-                                        react_router_instance={this.props.react_router_instance}
                                         />
-                                )}
-                            />)}
-                        </Switch>
-                    )}
+                                    )}
+                                />)}
+                            </Switch>
+                        )}
 
-                </EntryPoint>
+                    </EntryPoint>
+
+                )}
+
             </Router>);
     }
 }
