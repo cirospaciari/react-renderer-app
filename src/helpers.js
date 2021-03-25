@@ -34,6 +34,9 @@ function getRequest(additional) {
         origin: `${location.protocol}//${location.host}`,
         is_server: false,
         cookies: getCookies(),
+        headers: {
+            'user-agent': window.navigator.userAgent
+        },
         ...additional
     };
 }
