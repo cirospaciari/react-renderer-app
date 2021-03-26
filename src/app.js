@@ -1,6 +1,6 @@
 const globalMods = typeof window === 'undefined' ? global : window;
 
-const React =  (globalMods['react'] || require('react'));
+const React = (globalMods['react'] || require('react'));
 const { Component, Fragment } = React;
 const { BrowserRouter, StaticRouter, Route, Switch, withRouter } = globalMods['react-router-dom'] || require('react-router-dom');
 
@@ -116,7 +116,16 @@ export default class App extends Component {
         const fetch = (routeOrEntry) => {
             if (!routeOrEntry)
                 return new Promise((resolve) => resolve(this.state.entry_state.model));
-           
+            if (routeOrEntry.component.__force_preload) {
+                return new Promise((resolve) =>
+                    routeOrEntry.component.__force_preload().then((component) => {
+                        fetcher = (component.fetch || (component.default || {}).fetch);
+                        if (typeof fetcher !== 'function')
+                            resolve(this.state.entry_state.model);
+                        resolve(fetcher(request, reply));
+                    })
+                );
+            }
             const fetcher = routeOrEntry.fetch || (routeOrEntry.component || {}).fetch;
             if (typeof fetcher !== 'function')
                 return new Promise((resolve) => resolve(this.state.entry_state.model));
@@ -149,7 +158,7 @@ export default class App extends Component {
         }
 
         const EntryPoint = (this.state.entry ? this.state.entry.component : null) || ((props) => <Fragment>{props.children}</Fragment>);
-        
+
         return (
             <Router location={location} context={this.state.context}>
                 {/*wait for dynamic import*/}

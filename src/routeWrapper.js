@@ -1,5 +1,5 @@
 const globalMods = typeof window === 'undefined' ? global : window;
-const React =  (globalMods['react'] || require('react'));
+const React = (globalMods['react'] || require('react'));
 const { Component, Fragment } = React;
 const { Redirect } = globalMods['react-router-dom'] || require('react-router-dom');
 
@@ -24,7 +24,7 @@ class RouteWrapper extends Component {
             }
         }
         this.state.component = route.component || (() => <Fragment />);
-       
+
         if (!this.props.is_server && !this.props.error) {
 
             const { params } = this.props.match;
@@ -68,35 +68,54 @@ class RouteWrapper extends Component {
             }
         }
 
-    
+
     }
 
     updateHelmet(model) {
         const route = this.props.route;
 
-        return new Promise(resolve => {
-            const Helmet = route.helmet || (this.state.component || {}).helmet || (() => <Fragment />);
-            const container = document.createElement('head');
-            ReactDOM.render(<Helmet model={model} is_server={false} is_fetching={false} />, container, () => {
-                const headElement = document.querySelector('head');
-                //remove old helmet elements
-                Array.prototype.slice.apply(headElement.childNodes).forEach(child => {
-                    if (child.getAttribute('data-helmet') === "true") {
-                        child.remove();
-                    }
-                });
-                const titleElement = container.querySelector('title');
-                if (titleElement) {
-                    document.title = titleElement.innerText;
+        function getHelmetFromComponent() {
+            return new Promise((resolve) => {
+                if (route.helmet)
+                    return resolve(route.helmet);
+
+                if (this.state.component.__force_preload) {
+                    return this.state.component.__force_preload().then((component) => {
+                        resolve(component.helmet || (component.default || {}).helmet || <Fragment />);
+                    });
                 }
+                return resolve((this.state.component || {}).helmet || <Fragment />);
+            });
 
-                //add new helmet elements
-                container.childNodes.forEach(element => {
-                    element.setAttribute('data-helmet', 'true');
-                    headElement.appendChild(element);
+        }
+        return new Promise(resolve => {
+
+
+            getHelmetFromComponent().then((Helmet) => {
+
+                const container = document.createElement('head');
+                ReactDOM.render(<Helmet model={model} is_server={false} is_fetching={false} />, container, () => {
+                    const headElement = document.querySelector('head');
+                    //remove old helmet elements
+                    Array.prototype.slice.apply(headElement.childNodes).forEach(child => {
+                        if (child.getAttribute('data-helmet') === "true") {
+                            child.remove();
+                        }
+                    });
+                    const titleElement = container.querySelector('title');
+                    if (titleElement) {
+                        document.title = titleElement.innerText;
+                    }
+
+                    //add new helmet elements
+                    container.childNodes.forEach(element => {
+                        element.setAttribute('data-helmet', 'true');
+                        headElement.appendChild(element);
+                    });
+
+                    resolve();
                 });
 
-                resolve();
             });
         });
     }
