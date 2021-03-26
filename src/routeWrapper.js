@@ -11,6 +11,7 @@ class RouteWrapper extends Component {
         super(props, context);
         const route = this.props.route;
         this.updateHelmet = this.updateHelmet.bind(this);
+        this.completeFetch = this.completeFetch.bind(this);
         this.state = {
             is_fetching: false,
             model: this.props.model,
@@ -26,55 +27,77 @@ class RouteWrapper extends Component {
         this.state.component = route.component || (() => <Fragment />);
 
         if (!this.props.is_server && !this.props.error) {
+            const { params } = this.props.match;
+            const { request, fetch } = this.props.getRequest({ entry: this.props.entry, params, route: route.path || route.error });
+
+            if (!this.state.request || this.state.request.url !== request.url || this.state.request.search !== request.search) {
+                this.state.is_fetching = true;
+                this.state.request = request;
+                const result = fetch(route);
+                if (result instanceof Promise) {
+                    result.then(this.completeFetch);
+                } else {
+                    this.completeFetch(result, true);
+                }
+            }
+        }
+    }
+    completeFetch(model, dontUseSetState) {
+        const route = this.props.route;
+        const { params } = this.props.match;
+
+        const { reply, executeDOMOperations } = this.props.getRequest({ entry: this.props.entry, params, route: route.path || route.error });
+
+
+        if (reply.status === 302) {
+            if (dontUseSetState) {
+                this.state.redirect = reply.redirect_url;
+                this.state.is_fetching = false;
+            } else {
+                this.setState({ redirect: reply.redirect_url, is_fetching: false });
+            }
+            return;
+        }
+
+        this.updateHelmet(model).then(() => {
+            if (dontUseSetState) {
+                this.state.model = model;
+                this.state.is_fetching = false;
+            } else {
+                this.setState({ model: model, is_fetching: false });
+            }
+            if (typeof setImmediate === 'function') {
+                setImmediate(() => executeDOMOperations());
+            } else {
+                setTimeout(() => executeDOMOperations(), 0);
+            }
+        });
+    }
+
+    componentDidUpdate() {
+        if (!this.props.is_server && !this.props.error) {
+            const route = this.props.route;
 
             const { params } = this.props.match;
-            const { request, reply, fetch, executeDOMOperations } = this.props.getRequest({ entry: this.props.entry, params, route: route.path || route.error });
+            const { request, fetch } = this.props.getRequest({ entry: this.props.entry, params, route: route.path || route.error });
 
             //url changed
             if (!this.state.request || this.state.request.url !== request.url || this.state.request.search !== request.search) {
                 this.state.is_fetching = true;
                 this.state.request = request;
                 const result = fetch(route);
-                const complete = (model, dontUseSetState) => {
-                    if (reply.status === 302) {
-                        if (dontUseSetState) {
-                            this.state.redirect = reply.redirect_url;
-                            this.state.is_fetching = false;
-                        } else {
-                            this.setState({ redirect: reply.redirect_url, is_fetching: false });
-                        }
-                        return;
-                    }
-
-                    this.updateHelmet(model).then(() => {
-                        if (dontUseSetState) {
-                            this.state.model = model;
-                            this.state.is_fetching = false;
-                        } else {
-                            this.setState({ model: model, is_fetching: false });
-                        }
-                        if (typeof setImmediate === 'function') {
-                            setImmediate(() => executeDOMOperations());
-                        } else {
-                            setTimeout(() => executeDOMOperations(), 0);
-                        }
-                    });
-                };
                 if (result instanceof Promise) {
-                    result.then(complete);
+                    result.then(this.completeFetch);
                 } else {
-                    complete(result, true);
+                    this.completeFetch(result);
                 }
             }
         }
-
-
     }
 
     updateHelmet(model) {
         const route = this.props.route;
-
-        function getHelmetFromComponent() {
+        const getHelmetFromComponent = () => {
             return new Promise((resolve) => {
                 if (route.helmet)
                     return resolve(route.helmet);
@@ -86,7 +109,6 @@ class RouteWrapper extends Component {
                 }
                 return resolve((this.state.component || {}).helmet || <Fragment />);
             });
-
         }
         return new Promise(resolve => {
 

@@ -119,7 +119,7 @@ export default class App extends Component {
             if (routeOrEntry.component.__force_preload) {
                 return new Promise((resolve) =>
                     routeOrEntry.component.__force_preload().then((component) => {
-                        fetcher = (component.fetch || (component.default || {}).fetch);
+                        const fetcher = (component.fetch || (component.default || {}).fetch);
                         if (typeof fetcher !== 'function')
                             resolve(this.state.entry_state.model);
                         resolve(fetcher(request, reply));
