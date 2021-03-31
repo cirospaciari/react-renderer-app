@@ -54,7 +54,7 @@ export default function lazy(callback, options){
                 return <state.component.default {...props}/>
             }
             return <state.component {...props}/>;
-        }else if(options.fallback){
+        }else if(options && options.fallback){
             return <options.fallback {...props}/>;
         }else {
             return <Fragment></Fragment>
