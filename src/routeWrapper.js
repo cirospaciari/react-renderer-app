@@ -120,7 +120,7 @@ class RouteWrapper extends Component {
                     const headElement = document.querySelector('head');
                     //remove old helmet elements
                     Array.prototype.slice.apply(headElement.childNodes).forEach(child => {
-                        if (child.getAttribute('data-helmet') === "true") {
+                        if (child && child.getAttribute && child.getAttribute('data-helmet') === "true") {
                             child.remove();
                         }
                     });
